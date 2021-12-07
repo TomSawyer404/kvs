@@ -1,3 +1,3 @@
-mod kvs;
+mod kv;
 
-pub use kvs::KvStore;
+pub use kv::KvStore;
