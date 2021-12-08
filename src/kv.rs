@@ -13,6 +13,7 @@ use std::collections::HashMap;
 /// let val = store.get("key".to_owned());
 /// assert_eq!(val, Some("value".to_owned()));
 /// ```
+#[derive(Default)]
 pub struct KvStore {
     map: HashMap<String, String>,
 }
@@ -34,11 +35,12 @@ impl KvStore {
     /// Gets the string value of a given string key.
     /// Returns `None` if the given key does not exist.
     pub fn get(&self, key: String) -> Option<String> {
-        if let Some(x) = self.map.get(&key) {
-            Some(x.clone())
-        } else {
-            None
-        }
+        //if let Some(x) = self.map.get(&key) {
+        //    Some(x.clone())
+        //} else {
+        //    None
+        //}
+        self.map.get(&key).cloned()
     }
 
     /// Remove a given key.
