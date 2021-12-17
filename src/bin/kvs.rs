@@ -1,6 +1,6 @@
 extern crate clap;
 use clap::{App, Arg, SubCommand};
-use kvs::KvStore;
+use kvs::{KvStore, KvsError};
 use std::process;
 
 fn main() {
@@ -51,12 +51,40 @@ fn main() {
 
             process::exit(0);
         }
-        ("get", _matches) => {
-            eprintln!("unimplemented");
-            process::exit(1);
+        ("get", Some(matches)) => {
+            let key = matches.value_of("KEY").unwrap().to_owned();
+
+            let store = KvStore::open("./dblog.txt");
+            match store {
+                Ok(store) => {
+                    if let Ok(v) = store.get(key) {
+                        println!("{}", v.unwrap());
+                    } else {
+                        eprintln!("Key not found!");
+                    }
+                }
+                Err(e) => {
+                    print_err_exit(e);
+                }
+            }
+
+            process::exit(0);
         }
-        ("rm", _matches) => {
-            eprintln!("unimplemented");
+        ("rm", Some(matches)) => {
+            let key = matches.value_of("KEY").unwrap().to_owned();
+
+            let store = KvStore::open("./dblog.txt");
+            match store {
+                Ok(mut store) => {
+                    if let Err(e) = store.remove(key) {
+                        print_err_exit(e);
+                    }
+                }
+                Err(e) => {
+                    print_err_exit(e);
+                }
+            }
+
             process::exit(1);
         }
         _ => {
@@ -64,4 +92,9 @@ fn main() {
             process::exit(1);
         }
     }
+}
+
+fn print_err_exit(e: KvsError) {
+    eprintln!("errors -> {:?}", e);
+    process::exit(1);
 }
