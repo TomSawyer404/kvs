@@ -1,7 +1,11 @@
-use crate::error::Result;
-use crate::KvsError;
-use std::collections::HashMap;
-use std::path::PathBuf;
+use crate::{error::Result, KvsError};
+use serde::{Deserialize, Serialize};
+use serde_json::{Deserializer, Serializer};
+use std::{
+    collections::HashMap,
+    fs::{self, File, OpenOptions},
+    path::PathBuf,
+};
 
 /// The `KvStore` stores string key/value pairs.
 ///
@@ -16,30 +20,35 @@ use std::path::PathBuf;
 /// let val = store.get("key".to_owned());
 /// assert_eq!(val, Some("value".to_owned()));
 /// ```
-#[derive(Default)]
+#[derive(Debug)]
 pub struct KvStore {
     map: HashMap<String, String>,
+    log: File,
 }
 
 impl KvStore {
-    /// Creates a `KvStore`
-    pub fn new() -> KvStore {
-        KvStore {
-            map: HashMap::new(),
-        }
-    }
-
     /// Open a file
-    pub fn open<P: Into<PathBuf>>(_path: P) -> Result<KvStore> {
+    pub fn open<P: Into<PathBuf>>(path: P) -> Result<KvStore> {
+        let path = path.into();
+        let log = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .append(true)
+            .create(true)
+            .open(&path)?;
+
         Ok(KvStore {
             map: HashMap::new(),
+            log,
         })
     }
 
     /// Sets the value of a string key to a string.
     /// If the key already exists, the previous value will be overwritten.
     pub fn set(&mut self, key: String, val: String) -> Result<()> {
-        self.map.insert(key, val);
+        //self.map.insert(key, val);
+        let command = Command::set(key, val);
+        serde_json::to_writer(&mut self.log, &command)?;
         Ok(())
     }
 
@@ -60,5 +69,16 @@ impl KvStore {
         } else {
             Ok(())
         }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+enum Command {
+    Set { key: String, value: String },
+}
+
+impl Command {
+    fn set(key: String, value: String) -> Command {
+        Self::Set { key, value }
     }
 }

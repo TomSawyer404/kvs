@@ -1,5 +1,6 @@
 extern crate clap;
 use clap::{App, Arg, SubCommand};
+use kvs::KvStore;
 use std::process;
 
 fn main() {
@@ -30,9 +31,25 @@ fn main() {
         .get_matches();
 
     match matches.subcommand() {
-        ("set", _matches) => {
-            eprintln!("unimplemented");
-            process::exit(1);
+        ("set", Some(matches)) => {
+            let key = matches.value_of("KEY").unwrap().to_owned();
+            let val = matches.value_of("VALUE").unwrap().to_owned();
+
+            let store = KvStore::open("./dblog.txt");
+            match store {
+                Ok(mut store) => {
+                    if let Err(e) = store.set(key, val) {
+                        eprintln!("errors -> {:?}", e);
+                        process::exit(1);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("errors -> {:?}", e);
+                    process::exit(1);
+                }
+            }
+
+            process::exit(0);
         }
         ("get", _matches) => {
             eprintln!("unimplemented");

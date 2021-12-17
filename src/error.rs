@@ -9,6 +9,9 @@ pub enum KvsError {
     /// IO error
     IoError(io::Error),
 
+    /// Serialize or Deserialize error
+    SerdeError(serde_json::Error),
+
     /// Unexpected command type error
     UnexpectedCommandType,
 }
@@ -16,6 +19,12 @@ pub enum KvsError {
 impl From<io::Error> for KvsError {
     fn from(err: io::Error) -> KvsError {
         KvsError::IoError(err)
+    }
+}
+
+impl From<serde_json::Error> for KvsError {
+    fn from(err: serde_json::Error) -> Self {
+        KvsError::SerdeError(err)
     }
 }
 
