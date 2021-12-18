@@ -1,10 +1,11 @@
 use crate::{error::Result, KvsError};
 use serde::{Deserialize, Serialize};
-use serde_json::{Deserializer, Serializer};
+use serde_json::Deserializer;
 use std::{
     collections::HashMap,
-    fs::{self, File, OpenOptions},
-    path::PathBuf,
+    fs::{create_dir_all, File, OpenOptions},
+    io::{BufReader, BufWriter},
+    path::{Path, PathBuf},
 };
 
 /// The `KvStore` stores string key/value pairs.
@@ -23,32 +24,39 @@ use std::{
 #[derive(Debug)]
 pub struct KvStore {
     map: HashMap<String, String>,
-    log: File,
+    path: PathBuf,
+    wal_writer: BufWriter<File>,
 }
 
 impl KvStore {
-    /// Open a file
+    /// Opens a `KvStore` with a given path.
+    /// This will create a new directory if the given one doesn't exist.
     pub fn open<P: Into<PathBuf>>(path: P) -> Result<KvStore> {
         let path = path.into();
+        create_dir_all(&path)?;
+
+        let mut wal_path = path.clone();
+        wal_path.push("dblog.txt");
         let log = OpenOptions::new()
             .read(true)
             .write(true)
             .append(true)
             .create(true)
-            .open(&path)?;
+            .open(&wal_path)?;
 
         Ok(KvStore {
             map: HashMap::new(),
-            log,
+            path,
+            wal_writer: BufWriter::<File>::new(log),
         })
     }
 
     /// Sets the value of a string key to a string.
     /// If the key already exists, the previous value will be overwritten.
-    pub fn set(&mut self, key: String, val: String) -> Result<()> {
-        //self.map.insert(key, val);
-        let command = Command::set(key, val);
-        serde_json::to_writer(&mut self.log, &command)?;
+    pub fn set(&mut self, key: String, value: String) -> Result<()> {
+        self.map.insert(key.clone(), value.clone());
+        let set_command = SetCommand::new(key, value);
+        serde_json::to_writer(&mut self.wal_writer, &set_command)?;
         Ok(())
     }
 
@@ -72,6 +80,17 @@ impl KvStore {
     }
 }
 
+fn load_from_wal(wal_path: impl AsRef<Path>) -> Result<HashMap<String, String>> {
+    let mut map = HashMap::new();
+    let reader = BufReader::new(File::open(wal_path)?);
+    let stream = Deserializer::from_reader(reader).into_iter::<SetCommand>();
+    for set_cmd in stream {
+        let set_cmd = set_cmd?;
+        map.insert(set_cmd.key, set_cmd.value);
+    }
+    Ok(map)
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 enum Command {
     Set { key: String, value: String },
@@ -80,5 +99,17 @@ enum Command {
 impl Command {
     fn set(key: String, value: String) -> Command {
         Self::Set { key, value }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SetCommand {
+    key: String,
+    value: String,
+}
+
+impl SetCommand {
+    fn new(key: String, value: String) -> SetCommand {
+        SetCommand { key, value }
     }
 }

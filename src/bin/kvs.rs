@@ -1,9 +1,9 @@
 extern crate clap;
 use clap::{App, Arg, SubCommand};
-use kvs::{KvStore, KvsError};
-use std::process;
+use kvs::{KvStore, KvsError, Result};
+use std::{env::current_dir, process};
 
-fn main() {
+fn main() -> Result<()> {
     let matches = App::new("kvs")
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
@@ -35,17 +35,15 @@ fn main() {
             let key = matches.value_of("KEY").unwrap().to_owned();
             let val = matches.value_of("VALUE").unwrap().to_owned();
 
-            let store = KvStore::open("./dblog.txt");
+            let store = KvStore::open(current_dir()?);
             match store {
                 Ok(mut store) => {
                     if let Err(e) = store.set(key, val) {
-                        eprintln!("errors -> {:?}", e);
-                        process::exit(1);
+                        print_err_exit(e);
                     }
                 }
                 Err(e) => {
-                    eprintln!("errors -> {:?}", e);
-                    process::exit(1);
+                    print_err_exit(e);
                 }
             }
 
@@ -54,7 +52,7 @@ fn main() {
         ("get", Some(matches)) => {
             let key = matches.value_of("KEY").unwrap().to_owned();
 
-            let store = KvStore::open("./dblog.txt");
+            let store = KvStore::open(current_dir()?);
             match store {
                 Ok(store) => {
                     if let Ok(v) = store.get(key) {
@@ -73,7 +71,7 @@ fn main() {
         ("rm", Some(matches)) => {
             let key = matches.value_of("KEY").unwrap().to_owned();
 
-            let store = KvStore::open("./dblog.txt");
+            let store = KvStore::open(current_dir()?);
             match store {
                 Ok(mut store) => {
                     if let Err(e) = store.remove(key) {
